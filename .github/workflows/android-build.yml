@@ -1,0 +1,115 @@
+name: Android Build
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Cache pnpm dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Make gradlew executable
+        run: chmod +x android/gradlew
+
+      - name: Build Debug APK (Dev版本 - 可查看日志)
+        run: |
+          cd android
+          ./gradlew assembleDebug --stacktrace
+          cd ..
+
+      - name: Build Release APK (生产版本)
+        run: |
+          cd android
+          ./gradlew assembleRelease --stacktrace
+          cd ..
+
+      - name: Get version info
+        id: version
+        run: |
+          VERSION_NAME=$(grep "versionName" android/app/build.gradle | awk '{print $2}' | tr -d '"')
+          VERSION_CODE=$(grep "versionCode" android/app/build.gradle | awk '{print $2}')
+          echo "version_name=$VERSION_NAME" >> $GITHUB_OUTPUT
+          echo "version_code=$VERSION_CODE" >> $GITHUB_OUTPUT
+
+      - name: Rename APKs
+        run: |
+          mv android/app/build/outputs/apk/debug/app-debug.apk android/app/build/outputs/apk/debug/AutoClicker-v${{ steps.version.outputs.version_name }}-debug.apk
+          mv android/app/build/outputs/apk/release/app-release.apk android/app/build/outputs/apk/release/AutoClicker-v${{ steps.version.outputs.version_name }}-release.apk
+
+      - name: Upload Debug APK (开发版 - 可查看日志)
+        uses: actions/upload-artifact@v4
+        with:
+          name: AutoClicker-Debug-APK
+          path: android/app/build/outputs/apk/debug/AutoClicker-v${{ steps.version.outputs.version_name }}-debug.apk
+          retention-days: 30
+
+      - name: Upload Release APK (生产版)
+        uses: actions/upload-artifact@v4
+        with:
+          name: AutoClicker-Release-APK
+          path: android/app/build/outputs/apk/release/AutoClicker-v${{ steps.version.outputs.version_name }}-release.apk
+          retention-days: 90
+
+      - name: Create Build Summary
+        run: |
+          echo "## 构建成功 ✅" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 版本信息" >> $GITHUB_STEP_SUMMARY
+          echo "- 版本名称: ${{ steps.version.outputs.version_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- 版本代码: ${{ steps.version.outputs.version_code }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 构建产物" >> $GITHUB_STEP_SUMMARY
+          echo "1. **开发版 APK (Debug)** - 可查看日志，用于开发和调试" >> $GITHUB_STEP_SUMMARY
+          echo "   - 包名: com.autoclicker.debug" >> $GITHUB_STEP_SUMMARY
+          echo "   - 可与生产版共存" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "2. **生产版 APK (Release)** - 优化版本，用于发布" >> $GITHUB_STEP_SUMMARY
+          echo "   - 包名: com.autoclicker" >> $GITHUB_STEP_SUMMARY
+          echo "   - 已启用代码优化" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 下载方式" >> $GITHUB_STEP_SUMMARY
+          echo "在 Actions 页面的 Artifacts 部分下载对应的 APK 文件" >> $GITHUB_STEP_SUMMARY

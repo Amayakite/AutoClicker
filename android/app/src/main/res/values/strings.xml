@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">AutoClicker</string>
+    <string name="accessibility_service_description">允许自动点击器模拟屏幕点击操作</string>
 </resources>
