@@ -7,6 +7,11 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+env:
+  # Limit architectures for CI to speed up builds (arm64-v8a covers most modern devices)
+  # For release builds, you may want to build all architectures
+  CI_GRADLE_OPTS: -PreactNativeArchitectures=arm64-v8a
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -15,15 +20,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -31,40 +37,21 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Cache pnpm dependencies
-        uses: actions/cache@v4
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
         with:
-          path: ~/.pnpm-store
-          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-
-
-      - name: Cache Gradle
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
+          cache-read-only: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/develop' }}
 
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: Make gradlew executable
         run: chmod +x android/gradlew
 
-      - name: Build Debug APK (Dev版本 - 可查看日志)
+      - name: Build Debug and Release APKs
         run: |
           cd android
-          ./gradlew assembleDebug --stacktrace
-          cd ..
-
-      - name: Build Release APK (生产版本)
-        run: |
-          cd android
-          ./gradlew assembleRelease --stacktrace
+          ./gradlew assembleDebug assembleRelease $CI_GRADLE_OPTS
           cd ..
 
       - name: Get version info
