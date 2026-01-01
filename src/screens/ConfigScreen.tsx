@@ -1,5 +1,5 @@
-import React, {useState, useEffect} from 'react';
-import {View, StyleSheet, ScrollView, Alert} from 'react-native';
+import React, {useState, useEffect, useCallback} from 'react';
+import {View, StyleSheet, ScrollView, Alert, AppState, AppStateStatus} from 'react-native';
 import {
   Appbar,
   FAB,
@@ -10,6 +10,7 @@ import {
   Switch,
   TextInput,
   Divider,
+  ActivityIndicator,
 } from 'react-native-paper';
 import {useClickStore} from '../store/clickStore';
 import ClickPointList from '../components/ClickPointList';
@@ -20,29 +21,60 @@ const ConfigScreen = () => {
   const {points, config, execution, updateConfig, startExecution, stopExecution, updateExecutionState} = useClickStore();
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [serviceEnabled, setServiceEnabled] = useState(false);
+  const [isChecking, setIsChecking] = useState(true);
 
-  useEffect(() => {
-    checkAccessibilityService();
-  }, []);
-
-  const checkAccessibilityService = async () => {
+  // 检查无障碍服务状态
+  const checkAccessibilityService = useCallback(async () => {
     try {
+      setIsChecking(true);
       const enabled = await AccessibilityModule.isServiceEnabled();
       setServiceEnabled(enabled);
     } catch (error) {
       console.error('Failed to check accessibility service:', error);
+      setServiceEnabled(false);
+    } finally {
+      setIsChecking(false);
     }
-  };
+  }, []);
+
+  // 应用启动时和从后台返回时检查服务状态
+  useEffect(() => {
+    checkAccessibilityService();
+
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      if (nextAppState === 'active') {
+        // 应用回到前台时重新检查状态
+        checkAccessibilityService();
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+    return () => {
+      subscription.remove();
+    };
+  }, [checkAccessibilityService]);
+
+  // 定期检查服务状态（每5秒）
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!execution.isRunning) {
+        checkAccessibilityService();
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [checkAccessibilityService, execution.isRunning]);
 
   const handleRequestPermission = async () => {
     try {
       await AccessibilityModule.requestPermission();
       Alert.alert(
         '权限设置',
-        '请在设置中启用自动点击器的无障碍服务',
-        [{text: '确定', onPress: checkAccessibilityService}],
+        '请在设置中启用"自动点击器"的无障碍服务，启用后返回此应用',
+        [{text: '确定'}],
       );
-    } catch (error) {
+    } catch {
       Alert.alert('错误', '无法打开设置页面');
     }
   };
@@ -88,10 +120,19 @@ const ConfigScreen = () => {
 
       {!serviceEnabled && (
         <View style={styles.warningBanner}>
-          <Text style={styles.warningText}>无障碍服务未启用</Text>
-          <Button mode="contained" onPress={handleRequestPermission}>
-            去设置
-          </Button>
+          {isChecking ? (
+            <>
+              <ActivityIndicator size="small" color="#000" />
+              <Text style={styles.warningText}>检查无障碍服务状态...</Text>
+            </>
+          ) : (
+            <>
+              <Text style={styles.warningText}>无障碍服务未启用</Text>
+              <Button mode="contained" onPress={handleRequestPermission}>
+                去设置
+              </Button>
+            </>
+          )}
         </View>
       )}
 
@@ -116,7 +157,7 @@ const ConfigScreen = () => {
                 mode="outlined"
                 keyboardType="numeric"
                 value={config.startDelay.toString()}
-                onChangeText={text => updateConfig({startDelay: parseInt(text) || 0})}
+                onChangeText={text => updateConfig({startDelay: parseInt(text, 10) || 0})}
                 style={styles.input}
               />
             </View>
@@ -138,7 +179,7 @@ const ConfigScreen = () => {
                   mode="outlined"
                   keyboardType="numeric"
                   value={config.loopCount.toString()}
-                  onChangeText={text => updateConfig({loopCount: parseInt(text) || 0})}
+                  onChangeText={text => updateConfig({loopCount: parseInt(text, 10) || 0})}
                   style={styles.input}
                 />
               </View>

@@ -3,6 +3,13 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- 前台服务权限 -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- 防止系统休眠时关闭服务 -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application
       android:name=".MainApplication"
@@ -28,13 +35,17 @@
       <service
         android:name=".accessibility.AutoClickerService"
         android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
-        android:exported="true">
+        android:exported="true"
+        android:foregroundServiceType="specialUse">
         <intent-filter>
           <action android:name="android.accessibilityservice.AccessibilityService" />
         </intent-filter>
         <meta-data
           android:name="android.accessibilityservice"
           android:resource="@xml/accessibility_service_config" />
+        <property
+          android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+          android:value="accessibility_automation" />
       </service>
     </application>
 </manifest>

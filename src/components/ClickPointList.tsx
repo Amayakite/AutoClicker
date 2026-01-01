@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useState, useCallback} from 'react';
 import {View, StyleSheet, Alert} from 'react-native';
 import {List, IconButton, Text, FAB, Portal, Dialog, Button, TextInput, Switch, Divider} from 'react-native-paper';
 import DraggableFlatList, {RenderItemParams} from 'react-native-draggable-flatlist';
@@ -6,10 +6,88 @@ import {useClickStore} from '../store/clickStore';
 import {ClickPoint} from '../types';
 import {APP_CONFIG} from '../constants/config';
 
+// 提取左侧组件
+interface LeftComponentProps {
+  drag: () => void;
+  isActive: boolean;
+  enabled: boolean;
+  onToggle: () => void;
+}
+
+const LeftComponent = ({drag, isActive, enabled, onToggle}: LeftComponentProps) => (
+  <View style={styles.leftContainer}>
+    <IconButton
+      icon="drag"
+      onLongPress={drag}
+      disabled={isActive}
+    />
+    <Switch
+      value={enabled}
+      onValueChange={onToggle}
+    />
+  </View>
+);
+
+// 提取右侧组件
+interface RightComponentProps {
+  onEdit: () => void;
+  onDelete: () => void;
+}
+
+const RightComponent = ({onEdit, onDelete}: RightComponentProps) => (
+  <View style={styles.rightContainer}>
+    <IconButton
+      icon="pencil"
+      onPress={onEdit}
+    />
+    <IconButton
+      icon="delete"
+      onPress={onDelete}
+    />
+  </View>
+);
+
+// 独立的列表项组件
+interface ClickPointItemProps {
+  item: ClickPoint;
+  drag: () => void;
+  isActive: boolean;
+  onToggle: (id: string) => void;
+  onEdit: (point: ClickPoint) => void;
+  onDelete: (id: string) => void;
+}
+
+const ClickPointItem = React.memo(({item, drag, isActive, onToggle, onEdit, onDelete}: ClickPointItemProps) => {
+  const leftContent = React.useMemo(() => (
+    <LeftComponent
+      drag={drag}
+      isActive={isActive}
+      enabled={item.enabled}
+      onToggle={() => onToggle(item.id)}
+    />
+  ), [drag, isActive, item.enabled, item.id, onToggle]);
+
+  const rightContent = React.useMemo(() => (
+    <RightComponent
+      onEdit={() => onEdit(item)}
+      onDelete={() => onDelete(item.id)}
+    />
+  ), [item, onEdit, onDelete]);
+
+  return (
+    <List.Item
+      title={item.name || `点 ${item.order + 1}`}
+      description={`位置: (${item.x}, ${item.y}) | 延迟: ${item.delay}ms`}
+      left={() => leftContent}
+      right={() => rightContent}
+      style={[styles.listItem, isActive && styles.activeItem]}
+    />
+  );
+});
+
 const ClickPointList = () => {
   const {points, addPoint, updatePoint, deletePoint, reorderPoints, togglePoint} = useClickStore();
   const [editingPoint, setEditingPoint] = useState<ClickPoint | null>(null);
-  const [isAddingPoint, setIsAddingPoint] = useState(false);
 
   const handleAddPoint = () => {
     const x = Math.floor(Math.random() * 1000);
@@ -17,12 +95,12 @@ const ClickPointList = () => {
     addPoint(x, y);
   };
 
-  const handleDeletePoint = (id: string) => {
+  const handleDeletePoint = useCallback((id: string) => {
     Alert.alert('确认删除', '确定要删除这个点击点吗？', [
       {text: '取消'},
       {text: '删除', onPress: () => deletePoint(id), style: 'destructive'},
     ]);
-  };
+  }, [deletePoint]);
 
   const handleSaveEdit = () => {
     if (editingPoint) {
@@ -31,41 +109,18 @@ const ClickPointList = () => {
     }
   };
 
-  const renderItem = ({item, drag, isActive}: RenderItemParams<ClickPoint>) => (
-    <List.Item
-      title={item.name || `点 ${item.order + 1}`}
-      description={`位置: (${item.x}, ${item.y}) | 延迟: ${item.delay}ms`}
-      left={props => (
-        <View style={styles.leftContainer}>
-          <IconButton
-            {...props}
-            icon="drag"
-            onLongPress={drag}
-            disabled={isActive}
-          />
-          <Switch
-            value={item.enabled}
-            onValueChange={() => togglePoint(item.id)}
-          />
-        </View>
-      )}
-      right={props => (
-        <View style={styles.rightContainer}>
-          <IconButton
-            {...props}
-            icon="pencil"
-            onPress={() => setEditingPoint(item)}
-          />
-          <IconButton
-            {...props}
-            icon="delete"
-            onPress={() => handleDeletePoint(item.id)}
-          />
-        </View>
-      )}
-      style={[styles.listItem, isActive && styles.activeItem]}
-    />
-  );
+  const renderItem = useCallback(({item, drag, isActive}: RenderItemParams<ClickPoint>) => {
+    return (
+      <ClickPointItem
+        item={item}
+        drag={drag}
+        isActive={isActive}
+        onToggle={togglePoint}
+        onEdit={setEditingPoint}
+        onDelete={handleDeletePoint}
+      />
+    );
+  }, [togglePoint, handleDeletePoint]);
 
   return (
     <View style={styles.container}>
@@ -108,7 +163,7 @@ const ClickPointList = () => {
                 <TextInput
                   label="X 坐标"
                   value={editingPoint?.x.toString() || ''}
-                  onChangeText={text => setEditingPoint(prev => prev ? {...prev, x: parseInt(text) || 0} : null)}
+                  onChangeText={text => setEditingPoint(prev => prev ? {...prev, x: parseInt(text, 10) || 0} : null)}
                   keyboardType="numeric"
                   mode="outlined"
                   style={styles.halfInput}
@@ -116,7 +171,7 @@ const ClickPointList = () => {
                 <TextInput
                   label="Y 坐标"
                   value={editingPoint?.y.toString() || ''}
-                  onChangeText={text => setEditingPoint(prev => prev ? {...prev, y: parseInt(text) || 0} : null)}
+                  onChangeText={text => setEditingPoint(prev => prev ? {...prev, y: parseInt(text, 10) || 0} : null)}
                   keyboardType="numeric"
                   mode="outlined"
                   style={styles.halfInput}
@@ -126,7 +181,7 @@ const ClickPointList = () => {
               <TextInput
                 label="延迟 (毫秒)"
                 value={editingPoint?.delay.toString() || ''}
-                onChangeText={text => setEditingPoint(prev => prev ? {...prev, delay: parseInt(text) || 0} : null)}
+                onChangeText={text => setEditingPoint(prev => prev ? {...prev, delay: parseInt(text, 10) || 0} : null)}
                 keyboardType="numeric"
                 mode="outlined"
                 style={styles.input}
@@ -146,7 +201,7 @@ const ClickPointList = () => {
                 <TextInput
                   label="抖动范围 (像素)"
                   value={editingPoint?.jitterRange.toString() || ''}
-                  onChangeText={text => setEditingPoint(prev => prev ? {...prev, jitterRange: parseInt(text) || 0} : null)}
+                  onChangeText={text => setEditingPoint(prev => prev ? {...prev, jitterRange: parseInt(text, 10) || 0} : null)}
                   keyboardType="numeric"
                   mode="outlined"
                   style={styles.input}
@@ -165,7 +220,7 @@ const ClickPointList = () => {
                 <TextInput
                   label="漂移速度"
                   value={editingPoint?.driftSpeed.toString() || ''}
-                  onChangeText={text => setEditingPoint(prev => prev ? {...prev, driftSpeed: parseInt(text) || 0} : null)}
+                  onChangeText={text => setEditingPoint(prev => prev ? {...prev, driftSpeed: parseInt(text, 10) || 0} : null)}
                   keyboardType="numeric"
                   mode="outlined"
                   style={styles.input}
