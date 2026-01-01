@@ -42,7 +42,7 @@ const ConfigScreen = () => {
         '请在设置中启用自动点击器的无障碍服务',
         [{text: '确定', onPress: checkAccessibilityService}],
       );
-    } catch (error) {
+    } catch {
       Alert.alert('错误', '无法打开设置页面');
     }
   };
@@ -116,7 +116,7 @@ const ConfigScreen = () => {
                 mode="outlined"
                 keyboardType="numeric"
                 value={config.startDelay.toString()}
-                onChangeText={text => updateConfig({startDelay: parseInt(text) || 0})}
+                onChangeText={text => updateConfig({startDelay: parseInt(text, 10) || 0})}
                 style={styles.input}
               />
             </View>
@@ -138,7 +138,7 @@ const ConfigScreen = () => {
                   mode="outlined"
                   keyboardType="numeric"
                   value={config.loopCount.toString()}
-                  onChangeText={text => updateConfig({loopCount: parseInt(text) || 0})}
+                  onChangeText={text => updateConfig({loopCount: parseInt(text, 10) || 0})}
                   style={styles.input}
                 />
               </View>
