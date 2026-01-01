@@ -57,8 +57,8 @@ jobs:
       - name: Get version info
         id: version
         run: |
-          VERSION_NAME=$(grep -E "^\s+versionName" android/app/build.gradle | awk '{print $2}' | tr -d '"')
-          VERSION_CODE=$(grep -E "^\s+versionCode" android/app/build.gradle | awk '{print $2}')
+          VERSION_NAME=$(grep -E '^\s+versionName\s+"' android/app/build.gradle | awk '{print $2}' | tr -d '"')
+          VERSION_CODE=$(grep -E '^\s+versionCode\s+' android/app/build.gradle | awk '{print $2}')
           echo "version_name=$VERSION_NAME" >> $GITHUB_OUTPUT
           echo "version_code=$VERSION_CODE" >> $GITHUB_OUTPUT
 
