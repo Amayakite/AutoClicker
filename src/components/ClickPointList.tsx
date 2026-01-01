@@ -85,29 +85,52 @@ const ClickPointItem = React.memo(({item, drag, isActive, onToggle, onEdit, onDe
   );
 });
 
-const ClickPointList = () => {
-  const {points, addPoint, updatePoint, deletePoint, reorderPoints, togglePoint} = useClickStore();
+interface ClickPointListProps {
+  scriptId: string;
+}
+
+/**
+ * 点击点列表组件 - 用于显示和管理单个脚本中的点击点
+ * @deprecated 请使用 FloatingEditor 组件代替
+ */
+const ClickPointList: React.FC<ClickPointListProps> = ({scriptId}) => {
+  const {
+    scripts,
+    addPointToScript,
+    updatePointInScript,
+    deletePointFromScript,
+    reorderPointsInScript,
+    togglePointInScript,
+  } = useClickStore();
+
+  const script = scripts.find(s => s.id === scriptId);
+  const points = script?.points || [];
+
   const [editingPoint, setEditingPoint] = useState<ClickPoint | null>(null);
 
   const handleAddPoint = () => {
     const x = Math.floor(Math.random() * 1000);
     const y = Math.floor(Math.random() * 2000);
-    addPoint(x, y);
+    addPointToScript(scriptId, x, y);
   };
 
   const handleDeletePoint = useCallback((id: string) => {
     Alert.alert('确认删除', '确定要删除这个点击点吗？', [
       {text: '取消'},
-      {text: '删除', onPress: () => deletePoint(id), style: 'destructive'},
+      {text: '删除', onPress: () => deletePointFromScript(scriptId, id), style: 'destructive'},
     ]);
-  }, [deletePoint]);
+  }, [scriptId, deletePointFromScript]);
 
   const handleSaveEdit = () => {
     if (editingPoint) {
-      updatePoint(editingPoint.id, editingPoint);
+      updatePointInScript(scriptId, editingPoint.id, editingPoint);
       setEditingPoint(null);
     }
   };
+
+  const handleTogglePoint = useCallback((id: string) => {
+    togglePointInScript(scriptId, id);
+  }, [scriptId, togglePointInScript]);
 
   const renderItem = useCallback(({item, drag, isActive}: RenderItemParams<ClickPoint>) => {
     return (
@@ -115,12 +138,12 @@ const ClickPointList = () => {
         item={item}
         drag={drag}
         isActive={isActive}
-        onToggle={togglePoint}
+        onToggle={handleTogglePoint}
         onEdit={setEditingPoint}
         onDelete={handleDeletePoint}
       />
     );
-  }, [togglePoint, handleDeletePoint]);
+  }, [handleTogglePoint, handleDeletePoint]);
 
   return (
     <View style={styles.container}>
@@ -134,7 +157,7 @@ const ClickPointList = () => {
           data={points}
           renderItem={renderItem}
           keyExtractor={item => item.id}
-          onDragEnd={({data}) => reorderPoints(data)}
+          onDragEnd={({data}) => reorderPointsInScript(scriptId, data)}
         />
       )}
 

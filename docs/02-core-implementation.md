@@ -3,6 +3,10 @@
 ## 日期
 2025-12-31
 
+## 更新记录
+- 2025-12-31: 初始版本
+- 2025-01-01: 新增多脚本支持和悬浮可视化编辑器
+
 ## 已完成功能
 
 ### 1. 项目架构
@@ -24,21 +28,28 @@ AutoClicker/
 │           └── xml/accessibility_service_config.xml
 ├── src/
 │   ├── components/
-│   │   └── ClickPointList.tsx       # 点击点列表组件
+│   │   ├── ClickPointList.tsx       # 点击点列表组件（保留）
+│   │   ├── ScriptList.tsx           # ⭐ 多脚本列表组件
+│   │   └── FloatingEditor/          # ⭐ 悬浮可视化编辑器
+│   │       ├── FloatingEditor.tsx   # Modal 容器
+│   │       ├── EditorPanel.tsx      # 可拖动控制面板
+│   │       ├── MarkerLayer.tsx      # 标记管理层
+│   │       ├── TargetMarker.tsx     # 十字准星标记
+│   │       └── index.tsx            # 导出文件
 │   ├── screens/
-│   │   └── ConfigScreen.tsx         # 配置主界面
+│   │   └── ConfigScreen.tsx         # 配置主界面（已重构）
 │   ├── store/
-│   │   └── clickStore.ts            # Zustand 状态管理
+│   │   └── clickStore.ts            # Zustand 状态管理（已重构支持多脚本）
 │   ├── services/
 │   │   └── executionEngine.ts       # 执行引擎
 │   ├── native/
 │   │   └── AccessibilityModule.ts   # 原生模块 TypeScript 接口
 │   ├── types/
-│   │   └── index.ts                 # TypeScript 类型定义
+│   │   └── index.ts                 # TypeScript 类型定义（新增 Script, ScriptConfig）
 │   ├── utils/
 │   │   └── helpers.ts               # 工具函数
 │   └── constants/
-│       └── config.ts                # 常量配置
+│       └── config.ts                # 常量配置（新增 EDITOR_CONFIG）
 ├── docs/                            # 文档目录
 └── App.tsx                          # 应用入口
 ```
@@ -88,28 +99,26 @@ interface AccessibilityModuleInterface {
 }
 ```
 
-#### 2.3 状态管理 (clickStore.ts)
+#### 2.3 状态管理 (clickStore.ts) ⭐ 已重构
 
 **使用**: Zustand + AsyncStorage 持久化
 
-**状态结构**:
+**新版状态结构（v2）**:
 ```typescript
 {
-  points: ClickPoint[];        // 点击点数组
-  config: GlobalConfig;        // 全局配置
+  scripts: Script[];           // 脚本数组（每个脚本包含独立的 points[]）
+  activeScriptId: string | null; // 当前活跃脚本
+  globalConfig: GlobalConfig;  // 全局配置
   execution: ExecutionState;   // 执行状态
 }
 ```
 
 **主要方法**:
-- `addPoint(x, y)`: 添加点击点
-- `updatePoint(id, updates)`: 更新点击点
-- `deletePoint(id)`: 删除点击点
-- `reorderPoints(newOrder)`: 重新排序
-- `togglePoint(id)`: 启用/禁用点击点
-- `updateConfig(updates)`: 更新全局配置
-- `startExecution()`: 开始执行
-- `stopExecution()`: 停止执行
+- 脚本操作: `addScript`, `updateScript`, `deleteScript`, `duplicateScript`, `toggleScript`, `setActiveScript`
+- 点击点操作: `addPointToScript`, `updatePointInScript`, `deletePointFromScript`, `reorderPointsInScript`, `togglePointInScript`, `clearPointsInScript`
+- 便捷方法: `getActiveScript()`, `getScriptById(id)`
+- 配置操作: `updateGlobalConfig`
+- 执行操作: `startExecution(scriptId)`, `stopExecution`, `updateExecutionState`
 
 #### 2.4 执行引擎 (executionEngine.ts)
 
@@ -255,14 +264,14 @@ const jitterY = (Math.random() * 2 - 1) * jitterRange;
 ✅ 点击点编辑功能
 ✅ 全局设置对话框
 ✅ 权限检查和请求
+✅ 多脚本管理 ⭐ NEW
+✅ 悬浮可视化编辑器 ⭐ NEW
 
 ### 8. 待实现功能
 
-⏳ 悬浮窗功能 (可选)
-⏳ 屏幕坐标选择器 (点击屏幕获取坐标)
 ⏳ 漂移功能完整实现
-⏳ 单元测试
-⏳ 集成测试
+⏳ 悬浮窗快捷控制
+⏳ 执行日志
 ⏳ 真机测试
 
 ### 9. 使用说明
@@ -283,60 +292,67 @@ pnpm android
 3. 点击"去设置"按钮
 4. 在系统设置中启用"AutoClicker"无障碍服务
 5. 返回应用
-6. 点击"添加点击点"按钮
-7. 编辑点击点坐标和配置
-8. 点击"运行"按钮开始执行
+6. **点击 "+" 按钮创建新脚本**
+7. **点击"编辑点击点"进入悬浮编辑器**
+8. **点击屏幕添加点击点，或拖动十字准星调整坐标**
+9. 在控制面板中配置延迟、抖动等参数
+10. 点击"完成"保存
+11. 点击脚本卡片上的"播放"按钮执行
 
-#### 9.3 配置点击点
-1. 点击左下角"添加点击点"按钮
-2. 点击列表项右侧的编辑图标
-3. 设置坐标、延迟、抖动等参数
-4. 点击"保存"
+#### 9.3 使用悬浮编辑器
+1. 点击脚本卡片上的"编辑点击点"按钮
+2. 在全屏编辑器中点击屏幕添加新点击点
+3. 拖动十字准星标记调整坐标位置
+4. 在底部控制面板中查看和编辑点击点列表
+5. 控制面板可以拖动到屏幕任意位置
+6. 点击"完成"返回主界面
 
-#### 9.4 调整执行顺序
-1. 长按列表项左侧的拖拽图标
-2. 上下拖动调整顺序
-3. 松开自动保存
+#### 9.4 脚本管理
+1. 点击 "+" 创建新脚本
+2. 点击脚本卡片进行编辑
+3. 点击复制图标创建脚本副本
+4. 点击删除图标删除脚本
+5. 使用开关启用/禁用脚本
 
 #### 9.5 全局设置
 1. 点击右上角齿轮图标
-2. 设置启动延迟、循环次数等
+2. 设置震动反馈等全局配置
 3. 点击"关闭"保存
 
 ### 10. 技术亮点
 
-1. **类型安全**: 全面使用 TypeScript，提供完整的类型定义
-2. **状态持久化**: 使用 Zustand + AsyncStorage 自动保存配置
-3. **原生集成**: Kotlin 实现的无障碍服务，性能优秀
-4. **用户体验**: Material Design 风格，直观易用
-5. **拖拽排序**: 流畅的拖拽动画和交互
-6. **灵活配置**: 支持单点和全局两级配置
-7. **错误处理**: 完善的错误提示和权限引导
+1. **多脚本架构**: 支持创建多个独立脚本，每个脚本有自己的配置
+2. **可视化编辑**: 悬浮编辑器支持拖拽标记，直观设置坐标
+3. **类型安全**: 全面使用 TypeScript，提供完整的类型定义
+4. **状态持久化**: 使用 Zustand + AsyncStorage 自动保存配置
+5. **原生集成**: Kotlin 实现的无障碍服务，性能优秀
+6. **用户体验**: Material Design 风格，直观易用
+7. **PanResponder 拖拽**: 流畅的标记拖动体验
+8. **错误处理**: 完善的错误提示和权限引导
 
 ### 11. 注意事项
 
 1. **权限要求**: 必须启用无障碍服务才能使用
 2. **Android 版本**: 最低支持 Android 7.0 (API 24)
-3. **坐标获取**: 当前需要手动输入坐标，建议后续添加屏幕选择器
-4. **性能考虑**: 大量点击点可能影响性能，建议限制在 50 个以内
-5. **电池优化**: 长时间运行可能被系统限制，需要关闭电池优化
+3. **性能考虑**: 每个脚本建议点击点数量不超过 50 个
+4. **电池优化**: 长时间运行可能被系统限制，需要关闭电池优化
 
 ### 12. 下一步计划
 
-1. 添加屏幕坐标选择器
-2. 实现悬浮窗快捷控制
-3. 完善漂移功能
-4. 添加执行日志
-5. 优化 UI/UX
-6. 编写测试用例
-7. 准备发布版本
+1. 真机测试和 bug 修复
+2. 优化悬浮编辑器体验
+3. 实现悬浮窗快捷控制
+4. 完善漂移功能
+5. 添加执行日志
+6. 准备发布版本
 
 ## 总结
 
 当前已完成自动点击器的核心功能实现，包括：
 - 完整的 Android 无障碍服务集成
-- 功能完善的点击点管理系统
+- **多脚本管理系统**（创建、编辑、复制、删除脚本）
+- **悬浮可视化编辑器**（十字准星标记 + 拖拽定位）
 - 支持抖动、延迟、循环的执行引擎
 - 直观易用的 Material Design UI
 
-应用已具备基本可用性，可以进行真机测试和功能验证。
+应用已具备完整可用性，可以进行真机测试和功能验证。

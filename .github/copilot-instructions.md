@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-React Native **Android-only** app that automates screen clicks via Android Accessibility Service.
+React Native **Android-only** app that automates screen clicks via Android Accessibility Service. Supports **multiple scripts** with **visual floating editor** for point positioning.
 
 **Tech Stack:** React Native 0.83.1, TypeScript, Zustand, React Native Paper, Kotlin  
 **Requirements:** Node.js 22+, pnpm 10+, JDK 17, Android SDK (min API 26)
@@ -12,11 +12,13 @@ React Native **Android-only** app that automates screen clicks via Android Acces
 ## Architecture
 
 ```
-ConfigScreen.tsx → ExecutionEngine → AccessibilityModule.ts
-                                           ↓
-                              AccessibilityModule.kt (Native bridge)
-                                           ↓
-                              AutoClickerService.kt (dispatchGesture)
+ConfigScreen.tsx → ScriptList.tsx → FloatingEditor/
+                         ↓
+              ExecutionEngine → AccessibilityModule.ts
+                                       ↓
+                          AccessibilityModule.kt (Native bridge)
+                                       ↓
+                          AutoClickerService.kt (dispatchGesture)
 ```
 
 **Key constraint:** Accessibility Service must be enabled in Android Settings before clicks work.
@@ -41,9 +43,23 @@ cd android && ./gradlew assembleDebug   # Build APK
 | State store | [src/store/clickStore.ts](../src/store/clickStore.ts) |
 | Types | [src/types/index.ts](../src/types/index.ts) |
 | Execution | [src/services/executionEngine.ts](../src/services/executionEngine.ts) |
+| Script list | [src/components/ScriptList.tsx](../src/components/ScriptList.tsx) |
+| Floating editor | [src/components/FloatingEditor/](../src/components/FloatingEditor/) |
 | Native bridge (TS) | [src/native/AccessibilityModule.ts](../src/native/AccessibilityModule.ts) |
 | Native bridge (Kotlin) | [android/.../AccessibilityModule.kt](../android/app/src/main/java/com/autoclicker/AccessibilityModule.kt) |
 | Accessibility Service | [android/.../AutoClickerService.kt](../android/app/src/main/java/com/autoclicker/accessibility/AutoClickerService.kt) |
+
+## Data Models
+
+### Script
+```typescript
+{ id, name, description?, points[], config, createdAt, updatedAt, enabled }
+```
+
+### ClickPoint
+```typescript
+{ id, order, x, y, delay, jitter, jitterRange, drift, driftSpeed, enabled, name? }
+```
 
 ## Conventions
 
@@ -55,6 +71,8 @@ cd android && ./gradlew assembleDebug   # Build APK
 
 **Add native method:** TS interface → `AccessibilityModule.kt` → `AutoClickerService.kt` (if gesture)
 
-**Add click point property:** `src/types/index.ts` → `clickStore.ts` → `ClickPointList.tsx` → `executionEngine.ts`
+**Add script property:** `src/types/index.ts` → `clickStore.ts` → `ScriptList.tsx`
+
+**Add click point property:** `src/types/index.ts` → `clickStore.ts` → `FloatingEditor/EditorPanel.tsx` → `executionEngine.ts`
 
 > 📖 Project structure: [docs/00-project-summary.md](../docs/00-project-summary.md)

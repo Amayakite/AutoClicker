@@ -1,97 +1,246 @@
 import {create} from 'zustand';
 import {persist, createJSONStorage} from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {ClickPoint, GlobalConfig, ExecutionState} from '../types';
+import {ClickPoint, GlobalConfig, ExecutionState, Script, ScriptConfig} from '../types';
 import {generateId} from '../utils/helpers';
 import {APP_CONFIG} from '../constants/config';
 
 interface ClickStore {
-  points: ClickPoint[];
-  config: GlobalConfig;
+  // 脚本管理
+  scripts: Script[];
+  activeScriptId: string | null;
+
+  // 全局配置
+  globalConfig: GlobalConfig;
   execution: ExecutionState;
 
-  addPoint: (x: number, y: number) => void;
-  updatePoint: (id: string, updates: Partial<ClickPoint>) => void;
-  deletePoint: (id: string) => void;
-  reorderPoints: (newOrder: ClickPoint[]) => void;
-  togglePoint: (id: string) => void;
-  updateConfig: (updates: Partial<GlobalConfig>) => void;
-  startExecution: () => void;
+  // 脚本操作
+  addScript: (name: string, description?: string) => string;
+  updateScript: (id: string, updates: Partial<Script>) => void;
+  deleteScript: (id: string) => void;
+  setActiveScript: (id: string | null) => void;
+  duplicateScript: (id: string) => void;
+  toggleScript: (id: string) => void;
+
+  // 点击点操作（基于脚本）
+  addPointToScript: (scriptId: string, x: number, y: number) => void;
+  updatePointInScript: (scriptId: string, pointId: string, updates: Partial<ClickPoint>) => void;
+  deletePointFromScript: (scriptId: string, pointId: string) => void;
+  reorderPointsInScript: (scriptId: string, newOrder: ClickPoint[]) => void;
+  togglePointInScript: (scriptId: string, pointId: string) => void;
+  clearPointsInScript: (scriptId: string) => void;
+
+  // 全局配置操作
+  updateGlobalConfig: (updates: Partial<GlobalConfig>) => void;
+
+  // 执行状态操作
+  startExecution: (scriptId: string) => void;
   stopExecution: () => void;
   updateExecutionState: (updates: Partial<ExecutionState>) => void;
-  clearAllPoints: () => void;
+
+  // 便捷方法：获取当前活跃脚本
+  getActiveScript: () => Script | null;
+  getScriptById: (id: string) => Script | null;
 }
+
+const createDefaultScriptConfig = (): ScriptConfig => ({
+  startDelay: 0,
+  loopEnabled: false,
+  loopCount: 1,
+});
+
+const createDefaultPoint = (order: number, x: number, y: number): ClickPoint => ({
+  id: generateId(),
+  order,
+  x,
+  y,
+  delay: APP_CONFIG.DEFAULT_DELAY,
+  jitter: false,
+  jitterRange: APP_CONFIG.DEFAULT_JITTER_RANGE,
+  drift: false,
+  driftSpeed: APP_CONFIG.DEFAULT_DRIFT_SPEED,
+  enabled: true,
+  name: `点 ${order + 1}`,
+});
 
 export const useClickStore = create<ClickStore>()(
   persist(
     (set, get) => ({
-      points: [],
-      config: {
+      scripts: [],
+      activeScriptId: null,
+
+      globalConfig: {
         startDelay: 0,
         loopEnabled: false,
         loopCount: 1,
         vibrationEnabled: true,
       },
+
       execution: {
         isRunning: false,
         currentIndex: 0,
         loopIteration: 0,
         startTime: 0,
+        activeScriptId: null,
       },
 
-      addPoint: (x: number, y: number) => {
-        const points = get().points;
-        if (points.length >= APP_CONFIG.MAX_POINTS) {
-          return;
-        }
-
-        const newPoint: ClickPoint = {
-          id: generateId(),
-          order: points.length,
-          x,
-          y,
-          delay: APP_CONFIG.DEFAULT_DELAY,
-          jitter: false,
-          jitterRange: APP_CONFIG.DEFAULT_JITTER_RANGE,
-          drift: false,
-          driftSpeed: APP_CONFIG.DEFAULT_DRIFT_SPEED,
+      // 脚本操作
+      addScript: (name: string, description?: string) => {
+        const id = generateId();
+        const now = Date.now();
+        const newScript: Script = {
+          id,
+          name,
+          description,
+          points: [],
+          config: createDefaultScriptConfig(),
+          createdAt: now,
+          updatedAt: now,
           enabled: true,
-          name: `点 ${points.length + 1}`,
         };
 
-        set({points: [...points, newPoint]});
+        set(state => ({
+          scripts: [...state.scripts, newScript],
+          activeScriptId: id,
+        }));
+
+        return id;
       },
 
-      updatePoint: (id: string, updates: Partial<ClickPoint>) =>
+      updateScript: (id: string, updates: Partial<Script>) =>
         set(state => ({
-          points: state.points.map(p => (p.id === id ? {...p, ...updates} : p)),
-        })),
-
-      deletePoint: (id: string) =>
-        set(state => ({
-          points: state.points
-            .filter(p => p.id !== id)
-            .map((p, index) => ({...p, order: index})),
-        })),
-
-      reorderPoints: (newOrder: ClickPoint[]) =>
-        set({
-          points: newOrder.map((p, index) => ({...p, order: index})),
-        }),
-
-      togglePoint: (id: string) =>
-        set(state => ({
-          points: state.points.map(p =>
-            p.id === id ? {...p, enabled: !p.enabled} : p,
+          scripts: state.scripts.map(s =>
+            s.id === id ? {...s, ...updates, updatedAt: Date.now()} : s,
           ),
         })),
 
-      updateConfig: (updates: Partial<GlobalConfig>) =>
+      deleteScript: (id: string) =>
         set(state => ({
-          config: {...state.config, ...updates},
+          scripts: state.scripts.filter(s => s.id !== id),
+          activeScriptId: state.activeScriptId === id ? null : state.activeScriptId,
         })),
 
-      startExecution: () =>
+      setActiveScript: (id: string | null) =>
+        set({activeScriptId: id}),
+
+      duplicateScript: (id: string) => {
+        const currentState = get();
+        const script = currentState.scripts.find(s => s.id === id);
+        if (!script) return;
+
+        const newId = generateId();
+        const now = Date.now();
+        const newScript: Script = {
+          ...script,
+          id: newId,
+          name: `${script.name} (副本)`,
+          points: script.points.map(p => ({...p, id: generateId()})),
+          createdAt: now,
+          updatedAt: now,
+        };
+
+        set(state => ({
+          scripts: [...state.scripts, newScript],
+        }));
+      },
+
+      toggleScript: (id: string) =>
+        set(state => ({
+          scripts: state.scripts.map(s =>
+            s.id === id ? {...s, enabled: !s.enabled, updatedAt: Date.now()} : s,
+          ),
+        })),
+
+      // 点击点操作
+      addPointToScript: (scriptId: string, x: number, y: number) =>
+        set(state => ({
+          scripts: state.scripts.map(s => {
+            if (s.id !== scriptId) return s;
+            if (s.points.length >= APP_CONFIG.MAX_POINTS) return s;
+
+            const newPoint = createDefaultPoint(s.points.length, x, y);
+            return {
+              ...s,
+              points: [...s.points, newPoint],
+              updatedAt: Date.now(),
+            };
+          }),
+        })),
+
+      updatePointInScript: (scriptId: string, pointId: string, updates: Partial<ClickPoint>) =>
+        set(state => ({
+          scripts: state.scripts.map(s => {
+            if (s.id !== scriptId) return s;
+            return {
+              ...s,
+              points: s.points.map(p =>
+                p.id === pointId ? {...p, ...updates} : p,
+              ),
+              updatedAt: Date.now(),
+            };
+          }),
+        })),
+
+      deletePointFromScript: (scriptId: string, pointId: string) =>
+        set(state => ({
+          scripts: state.scripts.map(s => {
+            if (s.id !== scriptId) return s;
+            return {
+              ...s,
+              points: s.points
+                .filter(p => p.id !== pointId)
+                .map((p, index) => ({...p, order: index})),
+              updatedAt: Date.now(),
+            };
+          }),
+        })),
+
+      reorderPointsInScript: (scriptId: string, newOrder: ClickPoint[]) =>
+        set(state => ({
+          scripts: state.scripts.map(s => {
+            if (s.id !== scriptId) return s;
+            return {
+              ...s,
+              points: newOrder.map((p, index) => ({...p, order: index})),
+              updatedAt: Date.now(),
+            };
+          }),
+        })),
+
+      togglePointInScript: (scriptId: string, pointId: string) =>
+        set(state => ({
+          scripts: state.scripts.map(s => {
+            if (s.id !== scriptId) return s;
+            return {
+              ...s,
+              points: s.points.map(p =>
+                p.id === pointId ? {...p, enabled: !p.enabled} : p,
+              ),
+              updatedAt: Date.now(),
+            };
+          }),
+        })),
+
+      clearPointsInScript: (scriptId: string) =>
+        set(state => ({
+          scripts: state.scripts.map(s => {
+            if (s.id !== scriptId) return s;
+            return {
+              ...s,
+              points: [],
+              updatedAt: Date.now(),
+            };
+          }),
+        })),
+
+      // 全局配置操作
+      updateGlobalConfig: (updates: Partial<GlobalConfig>) =>
+        set(state => ({
+          globalConfig: {...state.globalConfig, ...updates},
+        })),
+
+      // 执行状态操作
+      startExecution: (scriptId: string) =>
         set(state => ({
           execution: {
             ...state.execution,
@@ -99,6 +248,7 @@ export const useClickStore = create<ClickStore>()(
             currentIndex: 0,
             loopIteration: 0,
             startTime: Date.now(),
+            activeScriptId: scriptId,
           },
         })),
 
@@ -107,6 +257,7 @@ export const useClickStore = create<ClickStore>()(
           execution: {
             ...state.execution,
             isRunning: false,
+            activeScriptId: null,
           },
         })),
 
@@ -115,11 +266,27 @@ export const useClickStore = create<ClickStore>()(
           execution: {...state.execution, ...updates},
         })),
 
-      clearAllPoints: () => set({points: []}),
+      // 便捷方法
+      getActiveScript: () => {
+        const state = get();
+        if (!state.activeScriptId) return null;
+        return state.scripts.find(s => s.id === state.activeScriptId) || null;
+      },
+
+      getScriptById: (id: string) => {
+        const state = get();
+        return state.scripts.find(s => s.id === id) || null;
+      },
     }),
     {
-      name: 'click-store',
+      name: 'click-store-v2',
       storage: createJSONStorage(() => AsyncStorage),
+      // 仅持久化必要数据
+      partialize: (state) => ({
+        scripts: state.scripts,
+        activeScriptId: state.activeScriptId,
+        globalConfig: state.globalConfig,
+      }),
     },
   ),
 );
