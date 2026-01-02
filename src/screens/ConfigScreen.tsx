@@ -16,7 +16,13 @@ import {FloatingEditor} from '../components/FloatingEditor';
 import AccessibilityModule from '../native/AccessibilityModule';
 import OverlayPermissionModule from '../native/OverlayPermissionModule';
 import ExecutionControlModule from '../native/ExecutionControlModule';
+import FloatingEditorModule, {
+  addFloatingEditorPointAddedListener,
+  addFloatingEditorDoneListener,
+  addFloatingEditorCancelListener,
+} from '../native/FloatingEditorModule';
 import {executionEngine} from '../services/executionEngine';
+import {roundCoordinate} from '../utils/helpers';
 
 const ConfigScreen = () => {
   const {
@@ -28,6 +34,7 @@ const ConfigScreen = () => {
     stopExecution,
     updateExecutionState,
     getScriptById,
+    addPointToScript,
   } = useClickStore();
 
   const [settingsVisible, setSettingsVisible] = useState(false);
@@ -76,6 +83,30 @@ const ConfigScreen = () => {
 
     return () => clearInterval(interval);
   }, [checkAccessibilityService, execution.isRunning]);
+
+  // 监听跨应用浮动编辑器事件
+  useEffect(() => {
+    const pointAddedListener = addFloatingEditorPointAddedListener(event => {
+      const {x, y, scriptId} = event;
+      if (scriptId) {
+        addPointToScript(scriptId, roundCoordinate(x), roundCoordinate(y));
+      }
+    });
+
+    const doneListener = addFloatingEditorDoneListener(() => {
+      // Editor closed
+    });
+
+    const cancelListener = addFloatingEditorCancelListener(() => {
+      // Editor cancelled
+    });
+
+    return () => {
+      pointAddedListener.remove();
+      doneListener.remove();
+      cancelListener.remove();
+    };
+  }, [addPointToScript]);
 
   const handleRequestPermission = async () => {
     try {
@@ -179,8 +210,34 @@ const ConfigScreen = () => {
   };
 
   // 编辑脚本点位
-  const handleEditScript = (scriptId: string) => {
-    setEditingScriptId(scriptId);
+  const handleEditScript = async (scriptId: string) => {
+    // 检查悬浮窗权限
+    try {
+      const hasOverlayPermission = await OverlayPermissionModule.checkPermission();
+      if (!hasOverlayPermission) {
+        Alert.alert('需要悬浮窗权限', '编辑点位需要悬浮窗权限以支持跨应用操作', [
+          {
+            text: '去设置',
+            onPress: async () => {
+              await OverlayPermissionModule.requestPermission();
+            },
+          },
+          {
+            text: '使用应用内编辑',
+            onPress: () => {
+              setEditingScriptId(scriptId);
+            },
+          },
+          {text: '取消'},
+        ]);
+        return;
+      }
+    } catch (error) {
+      console.error('Failed to check overlay permission:', error);
+    }
+
+    // 使用跨应用浮动编辑器
+    await FloatingEditorModule.show(scriptId);
   };
 
   return (

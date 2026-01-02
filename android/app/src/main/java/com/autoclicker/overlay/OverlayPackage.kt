@@ -10,7 +10,8 @@ class OverlayPackage : ReactPackage {
         return listOf(
             OverlayPermissionModule(reactContext),
             DebugOverlayModule(reactContext),
-            ExecutionControlModule(reactContext)
+            ExecutionControlModule(reactContext),
+            FloatingEditorModule(reactContext)
         )
     }
 

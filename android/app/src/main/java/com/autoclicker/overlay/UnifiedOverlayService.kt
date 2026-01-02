@@ -37,6 +37,7 @@ class UnifiedOverlayService : Service() {
 
     private lateinit var debugOverlayManager: DebugOverlayManager
     private lateinit var executionControlManager: ExecutionControlManager
+    private lateinit var floatingEditorManager: FloatingEditorManager
 
     override fun onCreate() {
         super.onCreate()
@@ -44,6 +45,7 @@ class UnifiedOverlayService : Service() {
 
         debugOverlayManager = DebugOverlayManager(this)
         executionControlManager = ExecutionControlManager(this)
+        floatingEditorManager = FloatingEditorManager(this)
 
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, createNotification())
@@ -72,6 +74,13 @@ class UnifiedOverlayService : Service() {
                     val progress = intent.getStringExtra(EXTRA_PROGRESS)
                     executionControlManager.updateStatus(status, progress)
                 }
+                ACTION_SHOW_EDITOR -> {
+                    val scriptId = intent.getStringExtra(EXTRA_SCRIPT_ID)
+                    floatingEditorManager.show(scriptId)
+                }
+                ACTION_HIDE_EDITOR -> {
+                    floatingEditorManager.hide()
+                }
                 ACTION_STOP_SERVICE -> {
                     stopSelf()
                 }
@@ -90,6 +99,7 @@ class UnifiedOverlayService : Service() {
         Log.d(TAG, "Service destroyed")
         debugOverlayManager.cleanup()
         executionControlManager.cleanup()
+        floatingEditorManager.cleanup()
     }
 
     private fun createNotificationChannel() {
