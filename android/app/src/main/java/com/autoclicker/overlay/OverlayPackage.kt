@@ -9,7 +9,8 @@ class OverlayPackage : ReactPackage {
     override fun createNativeModules(reactContext: ReactApplicationContext): List<NativeModule> {
         return listOf(
             OverlayPermissionModule(reactContext),
-            DebugOverlayModule(reactContext)
+            DebugOverlayModule(reactContext),
+            ExecutionControlModule(reactContext)
         )
     }
 

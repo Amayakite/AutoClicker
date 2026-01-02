@@ -1,6 +1,7 @@
 import {ClickPoint, GlobalConfig} from '../types';
 import {delay, calculateJitteredPosition, sortPointsByOrder} from '../utils/helpers';
 import AccessibilityModule from '../native/AccessibilityModule';
+import DebugOverlayModule from '../native/DebugOverlayModule';
 import {Vibration} from 'react-native';
 
 export class ExecutionEngine {
@@ -53,6 +54,10 @@ export class ExecutionEngine {
           }
 
           await AccessibilityModule.simulateClick(x, y);
+
+          if (config.debugMode) {
+            DebugOverlayModule.showClickPoint(Math.round(x), Math.round(y), 1000);
+          }
 
           if (config.vibrationEnabled) {
             Vibration.vibrate(50);

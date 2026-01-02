@@ -34,6 +34,7 @@ export interface GlobalConfig {
   loopEnabled: boolean;
   loopCount: number;
   vibrationEnabled: boolean;
+  debugMode: boolean;
 }
 
 export interface ExecutionState {

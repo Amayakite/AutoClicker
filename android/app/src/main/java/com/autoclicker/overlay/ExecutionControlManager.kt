@@ -9,7 +9,7 @@ import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
-import android.widget.ImageButton
+import android.widget.Button
 import android.widget.TextView
 import com.autoclicker.R
 
@@ -55,13 +55,13 @@ class ExecutionControlManager(private val context: Context) {
     }
 
     private fun createFloatingView(): View {
-        // 创建简单的控制面板
-        return View(context).apply {
-            // TODO: 使用实际的布局文件
-            // 暂时使用简单的View作为占位
-            setBackgroundColor(0xCC000000.toInt())
-            minimumWidth = 200
-            minimumHeight = 100
+        return LayoutInflater.from(context).inflate(R.layout.execution_control, null).apply {
+            findViewById<Button>(R.id.btnStop)?.setOnClickListener {
+                // TODO: Implement stop functionality
+            }
+            findViewById<Button>(R.id.btnClose)?.setOnClickListener {
+                hide()
+            }
         }
     }
 

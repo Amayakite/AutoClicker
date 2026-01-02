@@ -14,6 +14,8 @@ import {useClickStore} from '../store/clickStore';
 import ScriptList from '../components/ScriptList';
 import {FloatingEditor} from '../components/FloatingEditor';
 import AccessibilityModule from '../native/AccessibilityModule';
+import OverlayPermissionModule from '../native/OverlayPermissionModule';
+import ExecutionControlModule from '../native/ExecutionControlModule';
 import {executionEngine} from '../services/executionEngine';
 
 const ConfigScreen = () => {
@@ -100,6 +102,7 @@ const ConfigScreen = () => {
     if (execution.isRunning && execution.activeScriptId === scriptId) {
       executionEngine.stop();
       stopExecution();
+      await ExecutionControlModule.hide();
       return;
     }
 
@@ -121,20 +124,56 @@ const ConfigScreen = () => {
       return;
     }
 
+    // 检查悬浮窗权限
     try {
+      const hasOverlayPermission = await OverlayPermissionModule.checkPermission();
+      if (!hasOverlayPermission) {
+        Alert.alert('需要悬浮窗权限', '运行脚本需要悬浮窗权限以显示控制面板', [
+          {
+            text: '去设置',
+            onPress: async () => {
+              await OverlayPermissionModule.requestPermission();
+            },
+          },
+          {text: '取消'},
+        ]);
+        return;
+      }
+    } catch (error) {
+      console.error('Failed to check overlay permission:', error);
+    }
+
+    try {
+      // 显示执行控制悬浮窗
+      await ExecutionControlModule.show(scriptId);
+      await ExecutionControlModule.updateStatus('准备中...', '');
+
       startExecution(scriptId);
       // 使用脚本自己的配置，但震动反馈使用全局配置
       const config = {
         ...script.config,
         vibrationEnabled: globalConfig.vibrationEnabled,
+        debugMode: globalConfig.debugMode,
       };
       await executionEngine.execute(script.points, config, (index, iteration) => {
         updateExecutionState({currentIndex: index, loopIteration: iteration});
+        ExecutionControlModule.updateStatus(
+          '执行中',
+          `点 ${index + 1}/${script.points.length} | 循环 ${iteration + 1}`,
+        );
       });
       stopExecution();
+      await ExecutionControlModule.updateStatus('完成', '');
+      setTimeout(async () => {
+        await ExecutionControlModule.hide();
+      }, 2000);
       Alert.alert('完成', '执行完成');
     } catch (error: any) {
       stopExecution();
+      await ExecutionControlModule.updateStatus('错误', error.message || '');
+      setTimeout(async () => {
+        await ExecutionControlModule.hide();
+      }, 3000);
       Alert.alert('错误', error.message || '执行失败');
     }
   };
@@ -197,6 +236,14 @@ const ConfigScreen = () => {
               <Switch
                 value={globalConfig.vibrationEnabled}
                 onValueChange={value => updateGlobalConfig({vibrationEnabled: value})}
+              />
+            </View>
+            <Divider style={styles.divider} />
+            <View style={styles.settingRow}>
+              <Text>调试模式</Text>
+              <Switch
+                value={globalConfig.debugMode}
+                onValueChange={value => updateGlobalConfig({debugMode: value})}
               />
             </View>
             <Divider style={styles.divider} />

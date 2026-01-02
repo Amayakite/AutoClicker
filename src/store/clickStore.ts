@@ -74,6 +74,7 @@ export const useClickStore = create<ClickStore>()(
         loopEnabled: false,
         loopCount: 1,
         vibrationEnabled: true,
+        debugMode: false,
       },
 
       execution: {
