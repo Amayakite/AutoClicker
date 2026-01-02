@@ -8,6 +8,13 @@ export const generateId = (): string => {
   return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 };
 
+/**
+ * 将坐标值精确到小数点后三位
+ */
+export const roundCoordinate = (value: number): number => {
+  return Math.round(value * 1000) / 1000;
+};
+
 export const calculateJitteredPosition = (
   x: number,
   y: number,

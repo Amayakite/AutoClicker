@@ -207,18 +207,20 @@ const ScriptList: React.FC<ScriptListProps> = ({onEditScript, onRunScript}) => {
   };
 
   return (
-    <View style={styles.container}>
-      {scripts.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyIcon}>📝</Text>
-          <Text style={styles.emptyText}>暂无脚本</Text>
-          <Text style={styles.emptySubtext}>点击下方按钮创建您的第一个脚本</Text>
-        </View>
-      ) : (
-        <View style={styles.listContainer}>
-          {scripts.map(renderScriptItem)}
-        </View>
-      )}
+    <>
+      <View style={styles.container}>
+        {scripts.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyIcon}>📝</Text>
+            <Text style={styles.emptyText}>暂无脚本</Text>
+            <Text style={styles.emptySubtext}>点击下方按钮创建您的第一个脚本</Text>
+          </View>
+        ) : (
+          <View style={styles.listContainer}>
+            {scripts.map(renderScriptItem)}
+          </View>
+        )}
+      </View>
 
       <FAB
         icon="plus"

@@ -1,7 +1,9 @@
 import React, {useState, useCallback} from 'react';
 import {View, StyleSheet, Modal, Dimensions} from 'react-native';
+import {Provider as PaperProvider} from 'react-native-paper';
 import {useClickStore} from '../../store/clickStore';
 import {ClickPoint} from '../../types';
+import {roundCoordinate} from '../../utils/helpers';
 import EditorPanel from './EditorPanel';
 import MarkerLayer from './MarkerLayer';
 
@@ -34,8 +36,8 @@ const FloatingEditor: React.FC<FloatingEditorProps> = ({
 
   // 添加新点位（在屏幕中央创建）
   const handleAddPoint = useCallback(() => {
-    const centerX = screenWidth / 2;
-    const centerY = screenHeight / 2;
+    const centerX = roundCoordinate(screenWidth / 2);
+    const centerY = roundCoordinate(screenHeight / 2);
     addPointToScript(scriptId, centerX, centerY);
   }, [scriptId, screenWidth, screenHeight, addPointToScript]);
 
@@ -61,7 +63,10 @@ const FloatingEditor: React.FC<FloatingEditorProps> = ({
   // 更新点位位置（拖动时）
   const handleUpdatePointPosition = useCallback(
     (pointId: string, x: number, y: number) => {
-      updatePointInScript(scriptId, pointId, {x, y});
+      updatePointInScript(scriptId, pointId, {
+        x: roundCoordinate(x),
+        y: roundCoordinate(y),
+      });
     },
     [scriptId, updatePointInScript],
   );
@@ -78,30 +83,32 @@ const FloatingEditor: React.FC<FloatingEditorProps> = ({
       statusBarTranslucent
       onRequestClose={onClose}
     >
-      <View style={styles.container}>
-        {/* 半透明背景 */}
-        <View style={styles.overlay} />
+      <PaperProvider>
+        <View style={styles.container}>
+          {/* 半透明背景 */}
+          <View style={styles.overlay} />
 
-        {/* 可拖动的点位标记层 */}
-        <MarkerLayer
-          points={script.points}
-          selectedPointId={selectedPointId}
-          onSelectPoint={setSelectedPointId}
-          onUpdatePointPosition={handleUpdatePointPosition}
-        />
+          {/* 可拖动的点位标记层 */}
+          <MarkerLayer
+            points={script.points}
+            selectedPointId={selectedPointId}
+            onSelectPoint={setSelectedPointId}
+            onUpdatePointPosition={handleUpdatePointPosition}
+          />
 
-        {/* 操作面板 */}
-        <EditorPanel
-          scriptName={script.name}
-          points={script.points}
-          selectedPointId={selectedPointId}
-          onSelectPoint={setSelectedPointId}
-          onAddPoint={handleAddPoint}
-          onDeletePoint={handleDeletePoint}
-          onUpdatePoint={handleUpdatePoint}
-          onClose={onClose}
-        />
-      </View>
+          {/* 操作面板 */}
+          <EditorPanel
+            scriptName={script.name}
+            points={script.points}
+            selectedPointId={selectedPointId}
+            onSelectPoint={setSelectedPointId}
+            onAddPoint={handleAddPoint}
+            onDeletePoint={handleDeletePoint}
+            onUpdatePoint={handleUpdatePoint}
+            onClose={onClose}
+          />
+        </View>
+      </PaperProvider>
     </Modal>
   );
 };
