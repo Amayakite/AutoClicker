@@ -47,5 +47,13 @@
           android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
           android:value="accessibility_automation" />
       </service>
+      <service
+        android:name=".overlay.UnifiedOverlayService"
+        android:exported="false"
+        android:foregroundServiceType="specialUse">
+        <property
+          android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+          android:value="overlay_management" />
+      </service>
     </application>
 </manifest>
