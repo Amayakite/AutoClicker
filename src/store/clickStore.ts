@@ -26,6 +26,7 @@ interface ClickStore {
   addPointToScript: (scriptId: string, x: number, y: number) => void;
   updatePointInScript: (scriptId: string, pointId: string, updates: Partial<ClickPoint>) => void;
   deletePointFromScript: (scriptId: string, pointId: string) => void;
+  removeLastPointFromScript: (scriptId: string) => void;
   reorderPointsInScript: (scriptId: string, newOrder: ClickPoint[]) => void;
   togglePointInScript: (scriptId: string, pointId: string) => void;
   clearPointsInScript: (scriptId: string) => void;
@@ -191,6 +192,19 @@ export const useClickStore = create<ClickStore>()(
               points: s.points
                 .filter(p => p.id !== pointId)
                 .map((p, index) => ({...p, order: index})),
+              updatedAt: Date.now(),
+            };
+          }),
+        })),
+
+      removeLastPointFromScript: (scriptId: string) =>
+        set(state => ({
+          scripts: state.scripts.map(s => {
+            if (s.id !== scriptId) return s;
+            if (s.points.length === 0) return s;
+            return {
+              ...s,
+              points: s.points.slice(0, -1),
               updatedAt: Date.now(),
             };
           }),

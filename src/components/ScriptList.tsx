@@ -207,7 +207,7 @@ const ScriptList: React.FC<ScriptListProps> = ({onEditScript, onRunScript}) => {
   };
 
   return (
-    <>
+    <View style={styles.wrapper}>
       <View style={styles.container}>
         {scripts.length === 0 ? (
           <View style={styles.emptyContainer}>
@@ -286,11 +286,14 @@ const ScriptList: React.FC<ScriptListProps> = ({onEditScript, onRunScript}) => {
           </Dialog.Actions>
         </Dialog>
       </Portal>
-    </>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
+  wrapper: {
+    flex: 1,
+  },
   container: {
     flex: 1,
   },

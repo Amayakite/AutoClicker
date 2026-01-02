@@ -20,6 +20,8 @@ import FloatingEditorModule, {
   addFloatingEditorPointAddedListener,
   addFloatingEditorDoneListener,
   addFloatingEditorCancelListener,
+  addFloatingEditorUndoListener,
+  addFloatingEditorClearListener,
 } from '../native/FloatingEditorModule';
 import {executionEngine} from '../services/executionEngine';
 import {roundCoordinate} from '../utils/helpers';
@@ -35,6 +37,8 @@ const ConfigScreen = () => {
     updateExecutionState,
     getScriptById,
     addPointToScript,
+    removeLastPointFromScript,
+    clearPointsInScript,
   } = useClickStore();
 
   const [settingsVisible, setSettingsVisible] = useState(false);
@@ -101,12 +105,28 @@ const ConfigScreen = () => {
       // Editor cancelled
     });
 
+    const undoListener = addFloatingEditorUndoListener(event => {
+      const {scriptId} = event;
+      if (scriptId) {
+        removeLastPointFromScript(scriptId);
+      }
+    });
+
+    const clearListener = addFloatingEditorClearListener(event => {
+      const {scriptId} = event;
+      if (scriptId) {
+        clearPointsInScript(scriptId);
+      }
+    });
+
     return () => {
       pointAddedListener.remove();
       doneListener.remove();
       cancelListener.remove();
+      undoListener.remove();
+      clearListener.remove();
     };
-  }, [addPointToScript]);
+  }, [addPointToScript, removeLastPointFromScript, clearPointsInScript]);
 
   const handleRequestPermission = async () => {
     try {

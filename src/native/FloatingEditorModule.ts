@@ -24,6 +24,14 @@ export interface FloatingEditorCancelEvent {
   scriptId: string;
 }
 
+export interface FloatingEditorUndoEvent {
+  scriptId: string;
+}
+
+export interface FloatingEditorClearEvent {
+  scriptId: string;
+}
+
 // Event listeners
 export const addFloatingEditorPointAddedListener = (
   callback: (event: FloatingEditorPointAddedEvent) => void,
@@ -41,4 +49,16 @@ export const addFloatingEditorCancelListener = (
   callback: (event: FloatingEditorCancelEvent) => void,
 ) => {
   return DeviceEventEmitter.addListener('onFloatingEditorCancel', callback);
+};
+
+export const addFloatingEditorUndoListener = (
+  callback: (event: FloatingEditorUndoEvent) => void,
+) => {
+  return DeviceEventEmitter.addListener('onFloatingEditorUndo', callback);
+};
+
+export const addFloatingEditorClearListener = (
+  callback: (event: FloatingEditorClearEvent) => void,
+) => {
+  return DeviceEventEmitter.addListener('onFloatingEditorClear', callback);
 };
