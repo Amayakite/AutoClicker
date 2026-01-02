@@ -286,7 +286,7 @@ const ScriptList: React.FC<ScriptListProps> = ({onEditScript, onRunScript}) => {
           </Dialog.Actions>
         </Dialog>
       </Portal>
-    </View>
+    </>
   );
 };
 
