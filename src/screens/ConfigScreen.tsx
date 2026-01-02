@@ -22,6 +22,8 @@ import FloatingEditorModule, {
   addFloatingEditorCancelListener,
   addFloatingEditorUndoListener,
   addFloatingEditorClearListener,
+  addFloatingEditorTestRunListener,
+  addFloatingEditorPointConfigListener,
 } from '../native/FloatingEditorModule';
 import {executionEngine} from '../services/executionEngine';
 import {roundCoordinate} from '../utils/helpers';
@@ -119,14 +121,43 @@ const ConfigScreen = () => {
       }
     });
 
+    const testRunListener = addFloatingEditorTestRunListener(async event => {
+      const {scriptId} = event;
+      if (scriptId) {
+        const script = getScriptById(scriptId);
+        if (script && script.points.length > 0) {
+          try {
+            const config = {
+              ...script.config,
+              vibrationEnabled: globalConfig.vibrationEnabled,
+              debugMode: globalConfig.debugMode,
+            };
+            await executionEngine.execute(script.points, config, () => {});
+          } catch (error) {
+            console.error('Test run failed:', error);
+          }
+        }
+      }
+    });
+
+    const pointConfigListener = addFloatingEditorPointConfigListener(event => {
+      const {scriptId, pointIndex} = event;
+      if (scriptId) {
+        // TODO: Open point config dialog
+        console.log('Config point:', scriptId, pointIndex);
+      }
+    });
+
     return () => {
       pointAddedListener.remove();
       doneListener.remove();
       cancelListener.remove();
       undoListener.remove();
       clearListener.remove();
+      testRunListener.remove();
+      pointConfigListener.remove();
     };
-  }, [addPointToScript, removeLastPointFromScript, clearPointsInScript]);
+  }, [addPointToScript, removeLastPointFromScript, clearPointsInScript, getScriptById, globalConfig]);
 
   const handleRequestPermission = async () => {
     try {

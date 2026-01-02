@@ -32,6 +32,17 @@ export interface FloatingEditorClearEvent {
   scriptId: string;
 }
 
+export interface FloatingEditorTestRunEvent {
+  scriptId: string;
+}
+
+export interface FloatingEditorPointConfigEvent {
+  scriptId: string;
+  pointIndex: number;
+  x: number;
+  y: number;
+}
+
 // Event listeners
 export const addFloatingEditorPointAddedListener = (
   callback: (event: FloatingEditorPointAddedEvent) => void,
@@ -61,4 +72,16 @@ export const addFloatingEditorClearListener = (
   callback: (event: FloatingEditorClearEvent) => void,
 ) => {
   return DeviceEventEmitter.addListener('onFloatingEditorClear', callback);
+};
+
+export const addFloatingEditorTestRunListener = (
+  callback: (event: FloatingEditorTestRunEvent) => void,
+) => {
+  return DeviceEventEmitter.addListener('onFloatingEditorTestRun', callback);
+};
+
+export const addFloatingEditorPointConfigListener = (
+  callback: (event: FloatingEditorPointConfigEvent) => void,
+) => {
+  return DeviceEventEmitter.addListener('onFloatingEditorPointConfig', callback);
 };

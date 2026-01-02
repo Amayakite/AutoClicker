@@ -10,7 +10,7 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="📍 点击屏幕添加点位"
+        android:text="编辑点位"
         android:textColor="#FFFFFF"
         android:textSize="14sp"
         android:textStyle="bold" />
@@ -30,11 +30,19 @@
         android:layout_weight="1" />
 
     <Button
-        android:id="@+id/btnDone"
+        android:id="@+id/btnConfig"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="✓ 完成"
-        android:textColor="#FFFFFF"
+        android:text="配置"
         android:textSize="12sp"
-        android:backgroundTint="#4CAF50" />
+        android:layout_marginEnd="4dp"
+        android:backgroundTint="#2196F3" />
+
+    <Button
+        android:id="@+id/btnTest"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="测试"
+        android:textSize="12sp"
+        android:backgroundTint="#FF9800" />
 </LinearLayout>
